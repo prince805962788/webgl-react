@@ -8,8 +8,8 @@ export default class Line {
     const points: THREE.Vector2[] = [
       new THREE.Vector2(1, 2),
       new THREE.Vector2(13, 14),
-      new THREE.Vector2(25, 28),
-      new THREE.Vector2(36, 13),
+      new THREE.Vector2(25, 16),
+      new THREE.Vector2(36, 50),
       new THREE.Vector2(48, 4),
       new THREE.Vector2(55, -9),
     ];

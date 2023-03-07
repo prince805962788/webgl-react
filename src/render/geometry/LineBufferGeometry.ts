@@ -45,27 +45,41 @@ export class LineBufferGeometry extends THREE.BufferGeometry {
       curVertical_1.set(-curDirection.y, curDirection.x).multiplyScalar(halfWidth);
       curVertical_2.set(curDirection.y, -curDirection.x).multiplyScalar(halfWidth);
 
-      preSub_1.addVectors(pre, curVertical_1);
-      preSub_2.addVectors(pre, curVertical_2);
-      curSub_1.addVectors(cur, curVertical_1);
-      curSub_2.addVectors(cur, curVertical_2);
+      preSub_1.add(curVertical_1);
+      preSub_2.add(curVertical_2);
+      curSub_1.add(curVertical_1);
+      curSub_2.add(curVertical_2);
 
-      // if (i < 1) {
-      //   subPoints_1.push(preSub_1.clone());
-      //   subPoints_2.push(preSub_2.clone());
-      // } else if (i === points.length - 1) {
-      //   subPoints_1.push(curSub_1.clone());
-      //   subPoints_2.push(curSub_2.clone());
-      // } else {
-      //   const temp_1 = new THREE.Vector2();
-      //   const temp_2 = new THREE.Vector2();
-      //   temp_1.addVectors(preVertical_1, curVertical_1).add(pre);
-      //   temp_2.addVectors(preVertical_2, curVertical_2).add(pre);
-      //   subPoints_1.push(temp_1);
-      //   subPoints_2.push(temp_2);
-      // }
-      subPoints_1.push(preSub_1.clone(), curSub_1.clone());
-      subPoints_2.push(preSub_2.clone(), curSub_2.clone());
+      if (i === 1) {
+        subPoints_1.push(preSub_1.clone());
+        subPoints_2.push(preSub_2.clone());
+      } else {
+        if (preDirection.equals(curDirection)) {
+          subPoints_1.push(preSub_1.clone());
+          subPoints_2.push(preSub_2.clone());
+        } else if (preDirection.dot(curDirection) < 0) {
+          const temp_1 = new THREE.Vector2();
+          const temp_2 = new THREE.Vector2();
+          temp_1.addVectors(preVertical_1, curVertical_1).add(pre);
+          temp_2.addVectors(preVertical_2, curVertical_2).add(pre);
+          subPoints_1.push(temp_1);
+          subPoints_2.push(temp_2);
+        } else if (preDirection.dot(curDirection) > 0) {
+          console.log(2);
+          const temp_1 = new THREE.Vector2();
+          const temp_2 = new THREE.Vector2();
+          temp_1.addVectors(preVertical_1, curVertical_1).multiplyScalar(0.5).add(pre);
+          temp_2.addVectors(preVertical_2, curVertical_2).multiplyScalar(0.5).add(pre);
+          subPoints_1.push(temp_1);
+          subPoints_2.push(temp_2);
+        }
+      }
+      if (i === points.length - 1) {
+        subPoints_1.push(curSub_1.clone());
+        subPoints_2.push(curSub_2.clone());
+      }
+      // subPoints_1.push(preSub_1.clone(), curSub_1.clone());
+      // subPoints_2.push(preSub_2.clone(), curSub_2.clone());
 
       preVertical_1.copy(curVertical_1);
       preVertical_2.copy(curVertical_2);
