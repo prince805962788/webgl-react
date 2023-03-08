@@ -1,94 +1,117 @@
 import * as THREE from 'three';
-
-interface pointsProps {
-  x: number;
-  y: number;
-  z?: number;
-}
-export class LineBufferGeometry extends THREE.BufferGeometry {
-  constructor() {
-    super();
+/*
+属性：
+  points:线条节点,二维，[Vector2,Vector2,……]
+  lineWidth：线宽
+  vertices：顶点集合
+  normals：法线集合
+  indexes：顶点索引集合
+  uv：uv坐标集合
+*/
+export default class LineBufferGeometry {
+  public points: THREE.Vector2[];
+  public lineWidth: number;
+  public vertices: Float32Array;
+  public normals?: number[];
+  public indexes: number[];
+  public uv?: number[];
+  constructor(points: THREE.Vector2[] = [], lineWidth = 1) {
+    this.points = points;
+    this.vertices = new Float32Array([]);
+    this.indexes = [];
+    this.lineWidth = lineWidth;
+    this.init();
   }
-  setPoints(points: THREE.Vector2[] | pointsProps[], lineWidth: number) {
-    if (points.length < 2) {
-      return this;
+  init() {
+    const { points } = this;
+    const len = points.length;
+    if (len < 2) {
+      return;
     }
-    const halfWidth = lineWidth / 2;
 
-    const pre = new THREE.Vector2();
-    const preSub_1 = new THREE.Vector2();
-    const preSub_2 = new THREE.Vector2();
-    const cur = new THREE.Vector2();
-    const curSub_1 = new THREE.Vector2();
-    const curSub_2 = new THREE.Vector2();
+    // 挤压线条，获取顶点
+    const extrudePoints = this.extrude();
 
-    const preDirection = new THREE.Vector2();
-    const preVertical_1 = new THREE.Vector2();
-    const preVertical_2 = new THREE.Vector2();
-    const curDirection = new THREE.Vector2();
-    const curVertical_1 = new THREE.Vector2();
-    const curVertical_2 = new THREE.Vector2();
+    // 顶点集合
+    const vertices = [];
+    // 顶点索引
+    const indexes = [];
 
-    const subPoints_1: THREE.Vector2[] = [];
-    const subPoints_2: THREE.Vector2[] = [];
-    let i = 1;
-    while (i < points.length) {
-      pre.set(points[i - 1].x, points[i - 1].y);
-      preSub_1.copy(pre);
-      preSub_2.copy(pre);
-      cur.set(points[i].x, points[i].y);
-      curSub_1.copy(cur);
-      curSub_2.copy(cur);
+    // 以线段挤压出的四边形为单位，构建顶点集合、顶点索引
+    const len1 = points.length - 1;
+    for (let i = 0; i < len1; i++) {
+      //四边形的4个顶点
+      const pi = i * 2;
+      const [A1, A2, B1, B2] = [
+        extrudePoints[pi],
+        extrudePoints[pi + 1],
+        extrudePoints[pi + 2],
+        extrudePoints[pi + 3],
+      ];
+      vertices.push(A1.x, A1.y, 0, A2.x, A2.y, 0, B1.x, B1.y, 0, B2.x, B2.y, 0);
+      // 顶点索引
+      const A1i = i * 4;
+      const A2i = A1i + 1;
+      const B1i = A1i + 2;
+      const B2i = A1i + 3;
+      indexes.push(A1i, A2i, B1i, B1i, A2i, B2i);
+    }
 
-      curDirection.subVectors(cur, pre);
-      curDirection.normalize();
-      curVertical_1.set(-curDirection.y, curDirection.x).multiplyScalar(halfWidth);
-      curVertical_2.set(curDirection.y, -curDirection.x).multiplyScalar(halfWidth);
+    this.vertices = new Float32Array(vertices);
+    this.indexes = indexes;
+  }
 
-      preSub_1.add(curVertical_1);
-      preSub_2.add(curVertical_2);
-      curSub_1.add(curVertical_1);
-      curSub_2.add(curVertical_2);
-
-      if (i === 1) {
-        subPoints_1.push(preSub_1.clone());
-        subPoints_2.push(preSub_2.clone());
+  // 挤压线条
+  extrude() {
+    const { points } = this;
+    //线宽的一半
+    const h = this.lineWidth / 2;
+    //顶点集合，挤压起始点置入其中
+    const extrudePoints = [...this.verticalPoint(points[0], points[1], h)];
+    // 挤压线条内部点，置入extrudePoints
+    const len1 = points.length - 1;
+    const len2 = len1 - 1;
+    for (let i = 0; i < len2; i++) {
+      // 三个点,两条线
+      const A = points[i];
+      const B = points[i + 1];
+      const C = points[i + 2];
+      // 两条线是否相交
+      if (this.intersect(A, B, C)) {
+        extrudePoints.push(...this.interPoint(A, B, C, h));
       } else {
-        if (preDirection.equals(curDirection)) {
-          subPoints_1.push(preSub_1.clone());
-          subPoints_2.push(preSub_2.clone());
-        } else if (preDirection.dot(curDirection) < 0) {
-          const temp_1 = new THREE.Vector2();
-          const temp_2 = new THREE.Vector2();
-          temp_1.addVectors(preVertical_1, curVertical_1).add(pre);
-          temp_2.addVectors(preVertical_2, curVertical_2).add(pre);
-          subPoints_1.push(temp_1);
-          subPoints_2.push(temp_2);
-        } else if (preDirection.dot(curDirection) > 0) {
-          console.log(2);
-          const temp_1 = new THREE.Vector2();
-          const temp_2 = new THREE.Vector2();
-          temp_1.addVectors(preVertical_1, curVertical_1).multiplyScalar(0.5).add(pre);
-          temp_2.addVectors(preVertical_2, curVertical_2).multiplyScalar(0.5).add(pre);
-          subPoints_1.push(temp_1);
-          subPoints_2.push(temp_2);
-        }
+        extrudePoints.push(...this.verticalPoint(B, C, h));
       }
-      if (i === points.length - 1) {
-        subPoints_1.push(curSub_1.clone());
-        subPoints_2.push(curSub_2.clone());
-      }
-      // subPoints_1.push(preSub_1.clone(), curSub_1.clone());
-      // subPoints_2.push(preSub_2.clone(), curSub_2.clone());
-
-      preVertical_1.copy(curVertical_1);
-      preVertical_2.copy(curVertical_2);
-      preDirection.copy(curDirection);
-      i++;
     }
-    console.log(subPoints_1, subPoints_2);
-    const shape = new THREE.Shape([...subPoints_1, ...subPoints_2.reverse()]);
-    const geo = new THREE.ShapeGeometry(shape);
-    return geo;
+    // 挤压最后一个点
+    extrudePoints.push(...this.verticalPoint(points[len2], points[len1], h, points[len1]));
+    return extrudePoints;
+  }
+
+  // 判断两条直线是否相交
+  intersect(A: THREE.Vector2, B: THREE.Vector2, C: THREE.Vector2) {
+    const angAB = B.clone().sub(A).angle();
+    const angBC = C.clone().sub(B).angle();
+    return !!((angAB - angBC) % Math.PI);
+  }
+  //垂直挤压点
+  verticalPoint(A: THREE.Vector2, B: THREE.Vector2, h: number, M = A) {
+    const { x, y } = B.clone().sub(A);
+    return [
+      new THREE.Vector2(-y, x).setLength(h).add(M),
+      new THREE.Vector2(y, -x).setLength(h).add(M),
+    ];
+  }
+  // 拐点
+  interPoint(A: THREE.Vector2, B: THREE.Vector2, C: THREE.Vector2, h: number) {
+    const d = B.clone().sub(A).normalize();
+    const e = B.clone().sub(C).normalize();
+    const b = d.clone().add(e).normalize();
+    const BG = new THREE.Vector2(d.y, -d.x).setLength(h);
+    const BGLen = BG.length();
+    const cos = BG.clone().dot(b) / BGLen;
+    const BB2 = b.setLength(BGLen / cos);
+    const BB1 = BB2.clone().negate();
+    return [BB1.add(B), BB2.add(B)];
   }
 }

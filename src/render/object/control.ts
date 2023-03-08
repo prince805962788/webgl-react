@@ -12,7 +12,7 @@ export default class Control {
     this.container = domElement;
     this.control = new ExtendOrbit(object, domElement);
     this.control.target.set(0, 0, 0);
-    this.control.minDistance = 20;
+    this.control.minDistance = 2;
     this.control.maxDistance = 3840;
     this.control.maxPolarAngle = (Math.PI * 2) / 3;
     this.model = 'free';
