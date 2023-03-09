@@ -17,10 +17,7 @@ export default class Line {
       new Vector2(7, 4),
     ];
     const line = new LineBufferGeometry(points, 0.2);
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(line.vertices, 3));
-    geometry.setIndex(line.indexes);
-    const mesh = new THREE.Mesh(geometry);
+    const mesh = new THREE.Mesh(line);
     this.scene.add(mesh);
   }
 }
